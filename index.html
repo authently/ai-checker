@@ -425,8 +425,20 @@
 
             // FIX: Make sure to handle the case where AI score is 0
             if (results.aiScore <= 0.01) {
-                // If AI score is 0 or negligible, set a very low final score
-                finalScore = 0.05;
+                // If AI score is 0 or negligible
+                if (results.humanScore <= 0.01) {
+                    // If both scores are 0, assign a default small human score
+                    // This handles the edge case of neutral text
+                    results.humanScore = 0.1;
+                    results.humanIndicators.push("Default human authorship assumption");
+                    results.detailedAnalysis.push(`Default human assumption: <span class="human-feature-score">+0.10 (human)</span> - No strong patterns detected`);
+                    
+                    // Set final score to indicate human content
+                    finalScore = 0.05;
+                } else {
+                    // If only AI score is 0, set a very low final score
+                    finalScore = 0.05;
+                }
             } else if (results.humanScore <= 0.01) {
                 // If human score is 0 or negligible, set a very high final score
                 finalScore = 0.95;
