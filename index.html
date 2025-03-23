@@ -187,6 +187,8 @@
         <button class="sample-button" data-sample="personal">Sample: Personal Narrative</button>
         <button class="sample-button" data-sample="em-dash">Sample: Text with Em Dashes</button>
         <button class="sample-button" data-sample="product">Sample: Product Description</button>
+        <button class="sample-button" data-sample="title-case">Sample: Consistent Title Case</button>
+        <button class="sample-button" data-sample="list-punctuation">Sample: List Punctuation</button>
     </div>
 
     <textarea id="text-input"
@@ -304,6 +306,20 @@
                 }
             }
 
+            // NEW FEATURE: Check for consistent title case in headings and lists
+            const titleCaseResult = checkTitleCaseConsistency(text);
+            if (titleCaseResult.detected) {
+                results.aiScore += titleCaseResult.score;
+                results.aiIndicators.push(titleCaseResult.message);
+            }
+
+            // NEW FEATURE: Check for consistent list punctuation
+            const listPunctuationResult = checkListPunctuationConsistency(text);
+            if (listPunctuationResult.detected) {
+                results.aiScore += listPunctuationResult.score;
+                results.aiIndicators.push(listPunctuationResult.message);
+            }
+
             // Check for personal language (human indicator)
             const personalPhrases = ["i ", "me ", "my ", "we ", "our ", "honestly", "personally",
                 "i think", "i feel", "i've", "i'm", "we've"];
@@ -368,6 +384,92 @@
             };
         }
 
+        // NEW FUNCTION: Check for consistent title case in headings
+        function checkTitleCaseConsistency(text) {
+            // Look for heading patterns (lines that start with capital letters)
+            const lines = text.split('\n');
+            const headingLines = lines.filter(line => 
+                line.trim().length > 0 && 
+                /^[A-Z]/.test(line.trim()) && 
+                line.split(/\s+/).length >= 2
+            );
+            
+            if (headingLines.length >= 2) {
+                // Count words that follow Title Case pattern
+                let titleCaseWords = 0;
+                let totalWords = 0;
+                
+                headingLines.forEach(line => {
+                    const words = line.trim().split(/\s+/);
+                    totalWords += words.length;
+                    
+                    // Skip first word (naturally capitalized) and count rest
+                    for (let i = 1; i < words.length; i++) {
+                        const word = words[i];
+                        if (word.length > 2 && /^[A-Z][a-z]+$/.test(word)) {
+                            titleCaseWords++;
+                        }
+                    }
+                });
+                
+                // Calculate percentage of words that follow title case (excluding first words)
+                const titleCasePercentage = totalWords > headingLines.length 
+                    ? titleCaseWords / (totalWords - headingLines.length) 
+                    : 0;
+                
+                // If over 80% of non-first words use Title Case, flag it
+                if (totalWords > 5 && titleCasePercentage > 0.8) {
+                    return {
+                        detected: true,
+                        score: 0.2,
+                        message: `Consistent title case in headings (${Math.round(titleCasePercentage * 100)}%)`
+                    };
+                }
+            }
+            
+            return { detected: false, score: 0 };
+        }
+
+        // NEW FUNCTION: Check for consistent list punctuation
+        function checkListPunctuationConsistency(text) {
+            // Find list items (lines starting with bullet points, numbers, or dashes)
+            const listItemRegex = /^\s*[-•*]|^\s*\d+[.)]\s+.+/gm;
+            const listItems = text.match(listItemRegex);
+            
+            if (listItems && listItems.length >= 3) {
+                // Get the corresponding full lines
+                const lines = text.split('\n');
+                const listLines = lines.filter(line => 
+                    line.trim().match(/^\s*[-•*]|^\s*\d+[.)]\s+.+/)
+                );
+                
+                // Count items ending with periods and without periods
+                const endsWithPeriod = listLines.filter(
+                    line => /[.!?]$/.test(line.trim())
+                ).length;
+                
+                const endsWithoutPeriod = listLines.filter(
+                    line => !/[.!?]$/.test(line.trim()) && line.trim().length > 0
+                ).length;
+                
+                // Calculate consistency ratio
+                const totalItems = endsWithPeriod + endsWithoutPeriod;
+                const consistency = Math.max(endsWithPeriod, endsWithoutPeriod) / totalItems;
+                
+                // If all list items are consistently punctuated (or not), flag it
+                if (totalItems >= 3 && consistency > 0.9) {
+                    return {
+                        detected: true,
+                        score: 0.15,
+                        message: `Consistently ${endsWithPeriod > endsWithoutPeriod ? 
+                            'punctuated' : 'unpunctuated'} list items (${Math.round(consistency * 100)}%)`
+                    };
+                }
+            }
+            
+            return { detected: false, score: 0 };
+        }
+
         // Helper function to count character occurrences
         function countCharacter(text, char) {
             let count = 0;
@@ -406,7 +508,23 @@
             'personal': `I went hiking last weekend and saw the most beautiful sunset ever! My friends and I had been planning this trip for weeks. When I reached the summit, the view took my breath away. Today I'm still sore from the climb, but it was totally worth it. Yesterday I showed the photos to my mom and she loved them. We're definitely going back there next summer.`,
 
             'em-dash': `The future of work—influenced by automation, remote collaboration, and artificial intelligence—is rapidly evolving. Companies must adapt—especially in knowledge-intensive industries—to remain competitive. This adaptation requires three key strategies: workforce reskilling, technological infrastructure enhancement, and organizational culture transformation.`,
-      };
+            
+            'title-case': `Top Benefits Of Regular Exercise
+Cardiovascular Health Improvement
+Muscle Strength And Endurance
+Weight Management And Fat Loss
+Mental Health And Cognitive Benefits
+Improved Sleep Quality
+Reduced Risk Of Chronic Diseases`,
+
+            'list-punctuation': `Best practices for effective email communication:
+- Keep subject lines clear and specific.
+- Use a professional greeting.
+- Write concisely and stay on topic.
+- Proofread before sending.
+- Include a clear call to action.
+- Sign off professionally.`
+        };
 
         // Load sample text
         document.querySelectorAll('.sample-button').forEach(button => {
