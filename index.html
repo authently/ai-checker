@@ -187,6 +187,11 @@
             font-weight: bold;
             color: #e74c3c;
         }
+
+        .human-feature-score {
+            font-weight: bold;
+            color: #27ae60;
+        }
     </style>
 </head>
 
@@ -297,7 +302,7 @@
             if (formalCount > 0) {
                 results.aiScore += formalCount * 0.03;
                 results.aiIndicators.push(`Formal transitional phrases detected (${formalCount})`);
-                results.detailedAnalysis.push(`Formal transition phrases: <span class="feature-score">${formalCount * 0.03}</span>`);
+                results.detailedAnalysis.push(`Formal transition phrases: <span class="feature-score">+${(formalCount * 0.03).toFixed(2)}</span>`);
             }
 
             // DEEP LINGUISTIC ANALYSIS
@@ -359,7 +364,7 @@
                 } else if (stdDev > 4) {
                     results.humanScore += 0.1;
                     results.humanIndicators.push("High sentence length variation");
-                    results.detailedAnalysis.push(`Sentence variation: <span class="feature-score">+0.10 (human)</span> - Natural variation`);
+                    results.detailedAnalysis.push(`Sentence variation: <span class="human-feature-score">+0.10 (human)</span> - Natural variation`);
                 }
             }
 
@@ -389,7 +394,7 @@
                 const personalScore = Math.min(0.2, personalCount * 0.04);
                 results.humanScore += personalScore;
                 results.humanIndicators.push(`Personal language detected (${personalCount})`);
-                results.detailedAnalysis.push(`Personal language: <span class="feature-score">+${personalScore.toFixed(2)} (human)</span>`);
+                results.detailedAnalysis.push(`Personal language: <span class="human-feature-score">+${personalScore.toFixed(2)} (human)</span>`);
             }
 
             // Check for emotional expressions (human indicator)
@@ -398,7 +403,7 @@
                 const emotionalScore = Math.min(0.15, emotionalCount * 0.03);
                 results.humanScore += emotionalScore;
                 results.humanIndicators.push(`Emotional expressions detected (${emotionalCount})`);
-                results.detailedAnalysis.push(`Emotional expressions: <span class="feature-score">+${emotionalScore.toFixed(2)} (human)</span>`);
+                results.detailedAnalysis.push(`Emotional expressions: <span class="human-feature-score">+${emotionalScore.toFixed(2)} (human)</span>`);
             }
 
             // Irregularity in writing (human indicator)
@@ -407,7 +412,7 @@
                 const misspellScore = Math.min(0.25, misspellings * 0.05);
                 results.humanScore += misspellScore;
                 results.humanIndicators.push(`Likely spelling variations detected (${misspellings})`);
-                results.detailedAnalysis.push(`Spelling variations: <span class="feature-score">+${misspellScore.toFixed(2)} (human)</span>`);
+                results.detailedAnalysis.push(`Spelling variations: <span class="human-feature-score">+${misspellScore.toFixed(2)} (human)</span>`);
             }
 
             // Reduce human score if critical AI indicators are present
@@ -418,8 +423,14 @@
             // Calculate final score - more aggressive with AI scoring
             let finalScore = 0;
 
-            // Make higher-confidence classifications - more weighted towards AI
-            if (results.aiScore > results.humanScore) {
+            // FIX: Make sure to handle the case where AI score is 0
+            if (results.aiScore <= 0.01) {
+                // If AI score is 0 or negligible, set a very low final score
+                finalScore = 0.05;
+            } else if (results.humanScore <= 0.01) {
+                // If human score is 0 or negligible, set a very high final score
+                finalScore = 0.95;
+            } else if (results.aiScore > results.humanScore) {
                 // Scale to 0.6-1.0 range based on the difference (more aggressive)
                 const difference = results.aiScore - results.humanScore;
                 finalScore = 0.6 + (difference * 0.4);
@@ -432,9 +443,15 @@
             // Clamp between 0 and 1
             finalScore = Math.max(0, Math.min(1, finalScore));
 
-            // Generate interpretation
+            // FIX: Generate interpretation based on actual scores, not just final percentage
             let interpretation;
-            if (finalScore > 0.8) {
+            if (results.aiScore <= 0.01) {
+                // If no AI indicators were found at all
+                interpretation = "Very likely human-written content.";
+            } else if (results.humanScore <= 0.01) {
+                // If no human indicators were found at all
+                interpretation = "Very likely AI-generated content.";
+            } else if (finalScore > 0.8) {
                 interpretation = "Very likely AI-generated content.";
             } else if (finalScore > 0.6) {
                 interpretation = "Likely AI-generated content.";
